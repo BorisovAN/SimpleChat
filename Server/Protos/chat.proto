@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+option csharp_namespace = "SimpleChat.Proto";
+import "google/protobuf/empty.proto";
+package greet;
+
+service ChatService {
+  // Методы регистрации и входа. Возвращают connectionID - ИД нового соединения
+  rpc Register (RegistrationInfo) returns (GUID);
+  rpc Login (LoginRequest) returns  (GUID);
+  
+  rpc GetUserInfo (GetUserInfoRequest) returns (UserInfo);
+  rpc UpdateUserInfo (UpdateUserInfoReqiest) returns (google.protobuf.Empty);
+
+  rpc GetDialogs (GetDialogsRequest) returns (DialogsList);
+  rpc GetMessages (GetMessagesRequest) returns (MessagesList);
+  rpc SendMessage (SendMessageRequest) returns (google.protobuf.Empty);
+}
+
+message GUID {
+	string Value = 1;
+}
+
+message LoginRequest{
+	string UserName = 1;
+	string Password = 2;
+}
+
+message RegistrationInfo {
+	string UserName = 1;
+	string Password = 2;
+	uint32 Age = 3;
+	string Email = 4;
+}
+
+message GetUserInfoRequest{
+	GUID UserId = 1; // Если Guid.Value == string.Empty - возвращает инфу для текущего пользователя 
+}
+
+message UserInfo {
+    string UserName = 1;
+	uint32 Age = 2;
+	string Email = 3;
+	bytes Avatar = 4;
+}
+
+message UpdateUserInfoReqiest{
+	GUID SessionID= 1;
+	UserInfo Info = 2;
+}
+
+message DialogInfo{
+	GUID Id = 1;
+	GUID User1 = 2;
+	GUID User2 = 3;
+}
+
+message GetDialogsRequest{
+	GUID SessionID = 1;
+}
+
+message DialogsList{
+	repeated DialogInfo Dialogs = 1;
+}
+
+message GetMessagesRequest{
+	GUID SessionID=1;
+	GUID DialogId = 2;
+	uint32 start = 3;
+	uint32 count = 4;
+}
+
+message MessageInfo {
+	uint64 Id = 1;
+	string SendingTime = 2;//ISO Date string
+	string Text = 3;
+}
+
+message MessagesList{
+	GUID DialogId = 1;
+	repeated MessageInfo Messages = 2;
+}
+
+
+message SendMessageRequest{
+	GUID DialogId = 1; //Used if the dialog exists
+	GUID UserId = 2;    //Used if there is no dialog with this user;
+	string Text = 3;
+}
