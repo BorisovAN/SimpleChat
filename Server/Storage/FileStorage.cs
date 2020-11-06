@@ -1,13 +1,9 @@
 ﻿using SimpleChat.Proto;
 using SimpleChat.Server.Storage.DBO;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Runtime.Serialization.Json;
-using System.Threading.Tasks;
 
 namespace SimpleChat.Server.Storage
 {
@@ -32,7 +28,7 @@ namespace SimpleChat.Server.Storage
             User user;
             foreach (var fileInfo in directory.GetFiles())
             {
-                
+
                 using (var stream = fileInfo.Open(FileMode.Open))
                 {
                     user = formatter.Deserialize(stream) as User;
@@ -85,25 +81,26 @@ namespace SimpleChat.Server.Storage
             throw new NotImplementedException();
         }
 
-        public MessagesList GetMessages(Guid userId, Guid dialogId, ulong start, ulong count)
+        public MessagesList GetMessages(Guid userId, Guid dialogId, ulong startId, ulong count)
         {
             User user = GetUserById(userId);
             if (!user.DialogIds.Contains(dialogId))
                 throw new InvalidOperationException($"Dialog with id {dialogId} does not exists");
             var dialogMesagesDirectory = Path.Combine(MessagesFolder, dialogId.ToString());
-
+            //FIX THIS
             var messageFiles = new DirectoryInfo(dialogMesagesDirectory)
                 .GetFiles()
                 .OrderBy(f => f.Name) //имена файлов - 1.bin, 2.bin, 3.bin и тд. - хорошо сортируются
-                .SkipLast((int)start).TakeLast((int)count);//Нам нужно взять последние <count> фийлов, начиная с позиции <start>
+                .SkipLast((int)startId).TakeLast((int)count);//Нам нужно взять последние <count> фийлов, начиная с позиции <start>
 
             MessagesList result = new MessagesList();
             result.DialogId = new GUID { Value = dialogId.ToString() };
 
             var formatter = new BinaryFormatter();
-            foreach(var messageFile in messageFiles)
+            foreach (var messageFile in messageFiles)
             {
-                using (var stream = messageFile.Open(FileMode.Open)) {
+                using (var stream = messageFile.Open(FileMode.Open))
+                {
                     var message = formatter.Deserialize(stream) as Message;
 
                     if (message.DialogId != dialogId)
@@ -127,51 +124,63 @@ namespace SimpleChat.Server.Storage
         {
             //прочитать пользователя из файла
             //заполнить нужные поля UserInfo и вернуть объект
-            throw new NotImplementedException(); 
+            throw new NotImplementedException();
         }
 
+        private static object _registrationLock = new object();
         public Guid Register(RegistrationInfo info)
         {
             //проверить, есть ли юзер с такими Username и Email
             //создать файл и записать в него базовую инфу
             var directory = new DirectoryInfo(UsersFolder);
             var formatter = new BinaryFormatter();
-            
+            User newUser;
             //TODO: ADD CHECKS
 
-            foreach(var fileInfo in directory.GetFiles())
+            lock (_registrationLock)
             {
-                User user;
-                using (var stream = fileInfo.Open(FileMode.Open))
+                foreach (var fileInfo in directory.GetFiles())
                 {
-                    user = formatter.Deserialize(stream) as User;
+                    User user;
+                    using (var stream = fileInfo.Open(FileMode.Open))
+                    {
+                        user = formatter.Deserialize(stream) as User;
+                    }
+
+                    if (user.UserName == info.UserName)
+                    {
+                        throw new ArgumentException("Имя пользователя занято");
+                    }
+                    if (user.Email == info.Email)
+                    {
+                        throw new ArgumentException("Пользователь с данным email уже существует");
+                    }
                 }
 
-                if (user.UserName == info.UserName)
+                newUser = new User
                 {
-                    throw new ArgumentException("Имя пользователя занято");
+                    Id = Guid.NewGuid(),
+                    Password = info.Password,
+                    UserName = info.UserName
+                                       ,
+                    Age = info.Age,
+                    Email = info.Email
+                };
+
+
+                var fileName = Path.Join(UsersFolder, newUser.Id.ToString() + ".bin");
+                using (var stream = File.Create(fileName))
+                {
+                    formatter.Serialize(stream, newUser);
                 }
-                if (user.Email == info.Email)
-                {
-                    throw new ArgumentException("Пользователь с данным email уже существует");
-                }                
-            }
-
-            var newUser = new User { Id = Guid.NewGuid(), Password = info.Password, UserName = info.UserName
-                                   , Age = info.Age, Email = info.Email };
-
-
-            var fileName = Path.Join(UsersFolder, newUser.Id.ToString() + ".bin");
-            using (var stream = File.Create(fileName))
-            {
-                formatter.Serialize(stream, newUser);
             }
 
             return newUser.Id;
         }
-
+        static object _messagesLock = new object();
         public void SaveMessage(Guid dialogId, string message)
         {
+            //lock(_messagesLock)
             //Проверить существование DialogID
             //посчитать количество файлов в папке сообщений диалога
             //создать сообщение с соответствующим номером в качестве ИД
@@ -181,12 +190,13 @@ namespace SimpleChat.Server.Storage
 
         public void UpdateUserInfo(Guid userId, UserInfo newInfo)
         {
-
+            //no lock
             throw new NotImplementedException();
         }
 
         DialogInfo IStorage.CreateDialog(Guid user1, Guid user2)
         {
+            //lock (_dialogsLock)
             //прочитать пользователя1
             //проверить список диалогов.
             //если в списке есть диалог с пользователем2 - вернуть его ИД вместе с ИД пользователей

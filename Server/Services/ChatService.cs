@@ -4,15 +4,17 @@ using SimpleChat.Proto;
 using SimpleChat.Server.Storage;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace SimpleChat.Server.Services
 {
     public class ChatService : SimpleChat.Proto.ChatService.ChatServiceBase
     {
         static IStorage _storage = new FileStorage();
-        static Dictionary<string, Guid> _connections = new Dictionary<string, Guid>();
+        static ConcurrentDictionary<string, Guid> _connections = new ConcurrentDictionary<string, Guid>();
 
         /// <summary>
         /// Возвращает ИД пользователя либо бросает ошибку, если соединения с таким ИД нет
@@ -39,7 +41,7 @@ namespace SimpleChat.Server.Services
                 throw new RpcException(new Status(StatusCode.Unauthenticated, "Пользователь не найден"));
 
             var connectionId = Guid.NewGuid().ToString();
-            _connections.Add(connectionId, userId);
+            _connections.TryAdd(connectionId, userId);
 
             return Task.FromResult(new GUID { Value = connectionId });
         }
@@ -57,7 +59,7 @@ namespace SimpleChat.Server.Services
                 throw new Grpc.Core.RpcException(new Status(StatusCode.OutOfRange, e.Message));
             }
             connectionId = Guid.NewGuid().ToString();
-            _connections.Add(connectionId, userId);
+            _connections.TryAdd(connectionId, userId);
             return Task<GUID>.FromResult(new GUID {Value = connectionId});
         }
 

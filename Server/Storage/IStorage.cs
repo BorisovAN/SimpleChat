@@ -29,11 +29,11 @@ namespace SimpleChat.Server.Storage
         /// </summary>
         /// <param name="userId">ИД пользователя</param>
         /// <param name="dialogId">ИД диалога</param>
-        /// <param name="start">Порядковый номер стартового сообщения</param>
+        /// <param name="startId">ИД стартового сообщения</param>
         /// <param name="count">Число сообщений, которые необходимо вернуть</param>
         /// <returns>Сообщения</returns>
         /// <exception cref="InvalidOperationException">Пользователь или диалог не существуют</exception>
-        MessagesList GetMessages(Guid userId, Guid dialogId, ulong start, ulong count);
+        MessagesList GetMessages(Guid userId, Guid dialogId, ulong startId, ulong count);
 
         /// <summary>
         /// Получает информацию о заданном пользователе
